@@ -1,0 +1,92 @@
+# =============================================================================
+# TheoAllen - Specific Sell Price
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_SellPrice] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.08.11 - Finished script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini berfungsi untuk spesifikasi harga item
+  
+  Cara penggunaan :
+  Pasang dibawah material namun diatas main
+  Gunakan tag <sell price: n> pada note armor, weapon, dan item. Dimana n 
+  adalah harga jual barang tersebut.
+  
+  Terms of Use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+=end
+# =============================================================================
+# Tidak ada konfigurasi
+# =============================================================================
+class << DataManager
+  
+  alias theo_sell_price_load_db load_database
+  def load_database
+    theo_sell_price_load_db
+    load_price_database
+  end
+  
+  def load_price_database
+    ($data_armors + $data_weapons + $data_items).compact.each do |item|
+      item.load_price
+    end
+  end
+  
+end
+
+class RPG::Item < RPG::UsableItem
+  attr_accessor :sell_price
+  
+  def load_price
+    @sell_price = 0
+    self.note.split(/[\r\n]+/).each do |line|
+      case line
+      when /<(?:SELL_PRICE|sell price): [ ]*(\d+)>/i
+        @sell_price = $1.to_i
+      end
+    end
+  end
+  
+  def specify_sell_price?
+    @sell_price > 0
+  end
+  
+end
+
+class RPG::EquipItem < RPG::BaseItem
+  attr_accessor :sell_price
+  
+  def load_price
+    @sell_price = 0
+    self.note.split(/[\r\n]+/).each do |line|
+      case line
+      when /<(?:SELL_PRICE|sell price): [ ]*(\d+)>/i
+        @sell_price = $1.to_i
+      end
+    end
+  end
+  
+  def specify_sell_price?
+    @sell_price > 0
+  end
+  
+end
+
+class Scene_Shop < Scene_MenuBase
+  alias theo_ori_sell_price selling_price
+  def selling_price
+    return @item.sell_price if @item.specify_sell_price?
+    return theo_ori_sell_price
+  end
+end

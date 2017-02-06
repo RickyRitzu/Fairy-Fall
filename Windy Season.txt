@@ -1,0 +1,317 @@
+# =============================================================================
+# TheoAllen - Windy Season
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_WindySeason] = true
+# =============================================================================
+# Change Logs:
+# -----------------------------------------------------------------------------
+# 2013.11.05 - Finished script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Mau bikin cuaca berangin? Bingung gimana caranya? Script ini bisa ngebantu
+  kamu buat bikin cuaca serasa berangin di game
+  
+  Cara penggunaan :
+  Pasang script ini dibawah material namun diatas main
+  Edit konfigurasinya buat nentuin gambar partikel apa aja yg bakal kamu pake.
+  Gambar harus ada di Graphics/system
+  
+  Script call :
+  Untuk ngeset cuaca berangin, kamu cukup tuliskan script call :
+  windy(key,x,y,jumlah,rotate)
+  
+  Dimana :
+  - key     >> kunci untuk manggil file gambar (lihat konfigurasi)
+  - x       >> kecepatan scroll horizontal
+  - y       >> kecepatan scroll vertikal
+  - jumlah  >> jumlah partikel yg ditampilkan
+  - rotate  >> partikelnya diputer ngga? Isi dengan true atau false. Bisa
+               diabaikan kalo ngga perlu (defaultnya : true).
+               
+  Untuk ngehapus, kamu tinggal nulis aja script call :
+  erase_windy
+  
+  Terms of use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.  
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module Theo
+  module Windy
+  # --------------------------------------------------------------------------
+  # Image list ~
+  # --------------------------------------------------------------------------
+  # Disini kamu nyatet gambar partikel apa aja yang akan kamu tampilkan dalam
+  # game. Formatnya adalah "key" => ["gambar1","gambar2","gambar3"],
+  #
+  # "Key" nanti digunakan untuk pemanggilan dalam script call yg udah wa
+  # jelasin diatas
+  # --------------------------------------------------------------------------
+    List = {
+    "leaf" => ["leaf1","leaf2","leaf3"],
+    
+  # Tambahin sendiri disini
+  # Tambahin sendiri disini
+    
+    } # <-- Jangan dihapus
+  # -------------------------------------------------------------------------
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi
+# =============================================================================
+class Game_Interpreter
+  
+  def windy(key,x,y,count = 10, rotate = true)
+    system = $game_system.windy
+    system.speed_x = x
+    system.speed_y = y
+    system.count = count
+    system.visible = (x != 0 && y != 0)
+    system.rotate = rotate
+    system.need_reset = true
+  end
+  
+  def erase_windy
+    system = $game_system.windy
+    system.count = 0
+    system.visible = false
+    system.need_reset = true
+  end
+  
+end
+
+class Game_System
+  # --------------------------------------------------------------------------
+  # Exclusive Windy class for Game System to store windy datas
+  # --------------------------------------------------------------------------
+  class Windy
+    attr_accessor :speed_x      # Scroll speed x
+    attr_accessor :speed_y      # Scroll speed y
+    attr_accessor :visible      # Visible flag
+    attr_accessor :rotate       # Rotate flag
+    attr_accessor :variance     # Speed variance
+    attr_accessor :count        # Total particles
+    attr_accessor :key          # Particle key
+    attr_accessor :need_reset   # Need reset flag
+    
+    def initialize
+      @speed_x = 0
+      @speed_y = 0
+      @visible = false
+      @rotate = true
+      @variance = 2
+      @count = 20
+      @key = "leaf"
+      @need_reset = false
+    end
+  end
+  attr_reader :windy
+  
+  alias theo_windy_init initialize
+  def initialize
+    theo_windy_init
+    @windy = Windy.new
+  end
+  
+end
+
+class Windy_Particle < Sprite
+  # --------------------------------------------------------------------------
+  # Starting methods
+  # --------------------------------------------------------------------------
+  def initialize(viewport)
+    super(viewport)
+    start(true)
+  end
+  
+  def start(starting = false)
+    self.bitmap = Cache.system(file_name)
+    self.ox = width/2
+    self.oy = height/2
+    self.z = 300
+    @count = 0
+    set_map_display_value
+    set_rotation
+    random_start_position(starting)
+    set_speed
+  end
+  # --------------------------------------------------------------------------
+  # Update methods
+  # --------------------------------------------------------------------------
+  def update
+    super
+    @count += 1
+    update_visible
+    update_moving
+    update_rotate if @count % 5 == 0 && system.rotate
+    start if need_restart?
+  end
+  
+  def update_visible
+    self.visible = system.visible
+  end
+  
+  def update_moving
+    @xpos += @speed_x
+    @ypos += @speed_y
+    self.x = @xpos + diff_display_x * 32
+    self.y = @ypos + diff_display_y * 32
+  end
+  
+  def update_rotate
+    self.angle += rand(5)
+  end
+  # --------------------------------------------------------------------------
+  # Supportive methods
+  # --------------------------------------------------------------------------
+  def set_map_display_value
+    @display_x = $game_map.display_x
+    @display_y = $game_map.display_y
+  end
+  
+  def set_rotation
+    self.angle = (system.rotate ? rand(360) : 0)
+  end
+  
+  def random_start_position(starting)
+    if starting
+      self.x = rand(Graphics.width)
+      self.y = rand(Graphics.height)
+    elsif rand(2) == 0
+      self.x = start_x
+      self.y = (zero_x ? 0 : rand(Graphics.height))
+    else
+      self.x = (zero_y ? 0 : rand(Graphics.width))
+      self.y = start_y
+    end
+    @xpos = x.to_f
+    @ypos = y.to_f
+  end
+  
+  def set_speed
+    @speed_x = system.speed_x + (zero_x ? 0 : variance(system.speed_x))
+    @speed_y = system.speed_y + (zero_y ? 0 : variance(system.speed_y))
+  end
+  
+  def variance(speed)
+    (speed < 0 ? -rand(system.variance) : rand(system.variance))
+  end
+  
+  def diff_display_x
+    @display_x - $game_map.display_x
+  end
+  
+  def diff_display_y
+    @display_y - $game_map.display_y
+  end
+  
+  def system
+    $game_system.windy
+  end
+  
+  def zero_x
+    system.speed_x == 0
+  end
+  
+  def zero_y
+    system.speed_y == 0
+  end
+  
+  def start_x
+    (system.speed_x > 0 ? 0 : Graphics.width)
+  end
+  
+  def start_y
+    (system.speed_y > 0 ? 0 : Graphics.height)
+  end
+  
+  def target_x
+    return false if zero_x
+    (system.speed_x > 0 ? self.x >= Graphics.width : self.x <= 0)
+  end
+  
+  def target_y
+    return false if zero_y
+    (system.speed_y > 0 ? self.y >= Graphics.height : self.y <= 0)
+  end
+  
+  def file_list
+    Theo::Windy::List[system.key]
+  end
+  
+  def file_name
+    file_list[rand(file_list.size)]
+  end
+  
+  def need_restart?
+    target_x || target_y
+  end
+  
+end
+
+class Windy_Weather
+  
+  def initialize(viewport)
+    @viewport = viewport
+    @particles = []
+    reset
+  end
+  
+  def update
+    @particles.each {|particle| particle.update}
+    reset if system.need_reset
+  end
+  
+  def dispose_all
+    @particles.each {|particle| particle.dispose }
+  end
+  
+  def dispose
+    dispose_all
+  end
+  
+  def reset
+    dispose_all
+    @particles = Array.new(system.count) do |particle|
+      Windy_Particle.new(@viewport)
+    end
+    system.need_reset = false
+  end
+  
+  def system
+    $game_system.windy
+  end
+  
+end
+
+class Spriteset_Map
+  
+  alias theo_windy_create_viewports create_viewports
+  def create_viewports
+    theo_windy_create_viewports
+    @windy = Windy_Weather.new(@viewport1)
+  end
+  
+  alias theo_windy_update update
+  def update
+    theo_windy_update
+    @windy.update
+  end
+  
+  alias theo_windy_dispose dispose
+  def dispose
+    theo_windy_dispose
+    @windy.dispose
+  end
+  
+end

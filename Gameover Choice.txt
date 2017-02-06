@@ -1,0 +1,170 @@
+# =============================================================================
+# ♫ ~ Gameover Choice by TheoAllen ~ ♫
+# Version : 1.0
+# Contact : www.rpgmakerid.com
+# =============================================================================
+# Requires : N/A
+# Rewrites method :
+# - Scene_Gameover - update
+# - Scene_Gameover - fadeout_speed
+# - Scene_Gameover - fadein_speed
+# Aliases method :
+# - Scene_Gameover - start
+# New class :
+# - Window_GameoverChoice
+# =============================================================================
+# ♫ UPDATES :
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# 2013.02.26 - Started and finished script
+#
+# =============================================================================
+# ♫ DESCRIPTION :
+# This script allow you to add command window in gameover screen which is
+# contains "Continue/Load", "Back to title", "End game" 
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# ♫ INSTRUCTION : 
+# Put this script below material but above main in script editor. Don't forget
+# to save.
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# ♫ HOW TO USE :
+# Just edit the configurations below
+# =============================================================================
+# ♫ TERMS OF USE :
+# - Credit isn't necessary. But if you want to, you can put "TheoAllen" in your
+#   credit list
+# - You may use and edit this script both for commercial and non-commercial or
+#   even adult game as long as u don't claim it yours.
+# - I'll be glad if you give me a free copy of your game if you use this script 
+#   in your commercial project.
+# =============================================================================
+# 
+# =============================================================================
+# ♫ CONFIGURATIONS ~ ♫
+# =============================================================================
+module THEOLIZED
+  
+  LOAD_COMMAND  = "Continue"      # Continue command
+  TITLE_COMMAND = "Back to title" # Go to title command
+  EXIT_COMMAND  = "Exit game"     # Exit game command
+  
+  # These settings are for screen transition. The higher value means the longer
+  # time needed
+  FADEOUT_SPEED = 60    # Fadeout speed (default: 60)
+  FADEIN_SPEED  = 120   # Fadein speed (default: 120)
+  
+end
+# =============================================================================
+# ♫ Do not edit unless you know what to do ~ ♫
+# =============================================================================
+
+# =============================================================================
+# ♫ Window_GameoverChoice class ~ ♫
+# =============================================================================
+
+class Window_GameoverChoice < Window_Command
+  #--------------------------------------------------------------------------
+  # ♫ Object Initialization
+  #--------------------------------------------------------------------------
+  def initialize
+    super(0, 0)
+    update_placement
+    select_symbol(:continue) if continue_enabled
+    self.openness = 0
+    open
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Get Window Width
+  #--------------------------------------------------------------------------
+  def window_width
+    return 160
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Update Window Position
+  #--------------------------------------------------------------------------
+  def update_placement
+    self.x = (Graphics.width - width) / 2
+    self.y = (Graphics.height * 1.6 - height) / 2
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Create Command List
+  #--------------------------------------------------------------------------
+  def make_command_list
+    add_command(THEOLIZED::LOAD_COMMAND , :continue, continue_enabled)
+    add_command(THEOLIZED::TITLE_COMMAND, :title)
+    add_command(THEOLIZED::EXIT_COMMAND , :shutdown)
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Get Activation State of Continue
+  #--------------------------------------------------------------------------
+  def continue_enabled
+    DataManager.save_file_exists?
+  end
+end
+
+# =============================================================================
+# ♫ Scene_Gameover ~ ♫
+# =============================================================================
+
+class Scene_Gameover < Scene_Base
+  #--------------------------------------------------------------------------
+  # ♫ Aliased : Start Processing
+  #--------------------------------------------------------------------------
+  alias theo_go_choice_start start
+  def start
+    theo_go_choice_start
+    create_gameover_choice
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Create Choice Window
+  #--------------------------------------------------------------------------
+  def create_gameover_choice
+    @window_choice = Window_GameoverChoice.new
+    @window_choice.set_handler(:continue, method(:command_continue))
+    @window_choice.set_handler(:title,    method(:goto_title))
+    @window_choice.set_handler(:shutdown, method(:command_shutdown))
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Continue Command
+  #--------------------------------------------------------------------------
+  def command_continue
+    close_command_window
+    SceneManager.call(Scene_Load)
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Close command window
+  #--------------------------------------------------------------------------
+  def close_command_window
+    @window_choice.close
+    update until @window_choice.close?
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Shutdown Command
+  #--------------------------------------------------------------------------
+  def command_shutdown
+    close_command_window
+    fadeout_all
+    SceneManager.exit
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Overwrite : Frame Update
+  #--------------------------------------------------------------------------
+  def update
+    super
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Overwrite : Get Fade Out Speed
+  #--------------------------------------------------------------------------
+  def fadeout_speed
+    return THEOLIZED::FADEOUT_SPEED
+  end
+  #--------------------------------------------------------------------------
+  # ♫ Overwrite : Get Fade In Speed
+  #--------------------------------------------------------------------------
+  def fadein_speed
+    return THEOLIZED::FADEIN_SPEED
+  end
+
+end
+# =============================================================================
+# ♫ End of script ~ ♫
+# =============================================================================

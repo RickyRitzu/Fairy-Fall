@@ -1,0 +1,539 @@
+# =============================================================================
+# TheoAllen Time System - Core Script
+# Version : 1.1
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_CoreTime] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.08.29 - Change update variables workflow + added week 
+# 2013.08.27 - Finished script
+# =============================================================================
+=begin
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Perkenalan :
+  ---------------------------------------------------------------------------
+  Script ini ngebikin game kamu punya time. Ini adalah core script dari 
+  fitur-fitur tambahan lainnya ntar
+  
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Cara penggunaan :
+  ---------------------------------------------------------------------------
+  Pasang dibawah material namun diatas material
+  Atur jalan timenya dengan style kamu di konfigurasi
+  
+  Angka menit, jam, dan hari gw masukin ke variable ID. Pastikan kamu gunain
+  itu untuk bikin conditional branch.
+  
+  Untuk mempercepat dan memperlambat waktu jangan gunain control variable.
+  Gunain script call yang udah wa jelasin dibawah
+  
+  Untuk munculin debug window (yang nampilin waktu) gunain ALT
+  
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Notetag :
+  ---------------------------------------------------------------------------
+  
+  <no time tone>
+  ^
+  Pasang notetag ini pada note map untuk peta-peta yang ngga kepengaruh ama
+  tone waktu. Semisal di gua
+  
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Script call :
+  ---------------------------------------------------------------------------
+  advanded(menit)
+  advanded(menit,jam)
+  advanded(menit,jam,hari)
+  ^
+  Untuk mempercepat waktu. Parameter yang wajib diisi adalah menit. Sedangkan
+  jam dan hari bisa diabaikan
+  
+  ---------------------------------
+  roll_back(menit)
+  roll_back(menit,jam)
+  roll_back(menit,jam,hari)
+  ^
+  Untuk ngembaliin waktu. Parameter yang wajib diisi sama kek forward
+  
+  ---------------------------------
+  set_time(menit)
+  set_time(menit,jam)
+  set_time(menit,jam,hari)
+  ^
+  Untuk ngeset waktu secara langsung. Semisal kamu dalam inn, kamu pengen
+  bikin si player bangun jam 5:30, maka kamu bisa menggunakan script call
+  beruntun seperti ini
+  
+  advanded(0,0,1)
+  set_time(30,5)
+  
+  ---------------------------------
+  time.stop
+  time.play
+  ^
+  Untuk menghentikan waktu ato menjalankan waktu
+  
+  ---------------------------------
+  time.disable_tone = false
+  time.disable_tone = true
+  ^
+  Untuk ngedisable time tone semisal kamu make Evented Tint Screen
+  
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Terms of Use :
+  ---------------------------------------------------------------------------
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.  
+  
+  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  Author's Notes :
+  ---------------------------------------------------------------------------
+  Time system yang gw buat disini berdasarkan time system Open-World WRPG
+  macem Skyrim, Fallout, dan Kingdom of Amalur. Dimana time system mereka ngga 
+  butuh system penanggalan dan nama hari. Tapi mereka mencatat sudah berapa
+  hari kah player berada dalam waktu di game tersebut
+  
+  Personally, gw ngga demen ama game HM like. Jadi time system ini emang gw
+  bikin untuk kelengkapan fitur game dengan tipe open-world RPG. Dengan kata
+  lain ini gw bikin untuk kebutuhan gw sendiri
+  
+  Kalo semisal kamu mengharapkan ada system penanggalan seperti nama hari,
+  bulan, dan bahkan musim, edit aja sendiri ato berharap aja gw mau bikinin
+  suatu saat.
+  
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module Time
+  # --------------------------------------------------------------------------
+  # Setting Umum
+  # --------------------------------------------------------------------------
+    StartMinute = 10  # Permulaan menit waktu new game
+    StartHour   = 8   # Permulaan jam waktu new game
+    StartDay    = 0   # Permulaan hari waktu new game
+  
+    Minute_ID = 10 # ID untuk variable menit
+    Hour_ID   = 11 # ID untuk variable jam
+    Day_ID    = 12 # ID untuk variable hari
+    Week_ID   = 13 # ID untuk variable minggu
+    
+  # Note :
+  # - Nilai variable diatas otomatis udah diupdate. Kamu tinggal make buat
+  #   conditional branch
+  # - Perhitungan minggu ngga ada limiternya kek jam max 24 dan hari max 30.
+  #   Jadi semisal udah jalan 70 hari ya 7 minggu tanpa direset
+  
+  # --------------------------------------------------------------------------
+  # Skala waktu
+  # --------------------------------------------------------------------------
+  # Settingan menit dalam detik realtime. Semisal kamu nulisnya 5, maka 5
+  # detik dalam realtime sama dengan satu menit dalam game
+    Default_MinuteScale = 0.1
+  
+  # --------------------------------------------------------------------------
+  # Settingan ini adalah skala menit kustom berdasar tileset ID. Kamu bisa 
+  # membikin kalo player ada di worldmap (Tileset ID = 1) maka waktu dipercepat.
+  # Tapi kalo dalam indoor diberhentiin atau semacemnya. Jika tileset ID ngga 
+  # dicatet disini otomatis akan make default minute scale diatas.
+  
+    Custom_MinuteScale  = { # <-- Jangan disentuh!
+    # Tileset ID => Skala menit,
+               1 => 0.1,
+               
+    # Tambahin sendiri           
+    
+    } # <-- Jangan disentuh!
+  # --------------------------------------------------------------------------
+  # Tone Waktu
+  # --------------------------------------------------------------------------
+  # List tone yg tersedia. Sama kek tint screen
+  # Time  = Tone.new(red,green,blue,gray)
+    Dawn  = Tone.new( 30,    0, -34,   0)  # Pagi
+    Noon  = Tone.new(  0,    0,   0,   0)  # Siang
+    Dusk  = Tone.new( 68,  -34, -34,   0)  # Sore
+    Nite  = Tone.new(-68,  -68,   0,  68)  # Malem
+  
+  Tones = { # <-- Jangan disentuh!
+  # List tone yg dipake di jam2 tertentu. Dimulai dari min dan diakhiri ampe 
+  # max. Kalo kamu ngisinya [0,4] => Nite, maka itu berarti selama jam 0 - 4 
+  # tone yg dipake adalah Nite.
+  
+  # [min,max] => time tone
+    [  0,  4] => Nite,
+    [  5,  7] => Dawn,
+    [  8, 14] => Noon,
+    [ 15, 18] => Dusk,
+    [ 19, 24] => Nite,
+    
+    } # <-- Jangan disentuh!
+  # --------------------------------------------------------------------------
+  # Lain-lain
+  # --------------------------------------------------------------------------
+  # Bagi kalian yg pernah maen harvest moon. Dalam game HM hari ngga akan
+  # ganti kalo ngga tidur. Setting ini untuk menyetting sampe manakah nominal
+  # maksimal jam. Semisal kamu tulis 22, maka kalo jam udah nyentuh 22 ngga
+  # akan diapdet lagi. Tulis 0 ato lebih dari 24 kalo pengen ngedisable
+    MaxHour = 0
+    
+  # Game pasti ada cutscenenya. Semisal omong-omongan ama orang atau scene yang
+  # lain. Settingan ini untuk stop waktu sementara kalo ada cutscene dan
+  # dijalanin lagi kalo scene udah beres
+    DisableAtScene = true
+    
+  end
+end
+# =============================================================================
+# Akhir dari konfig :
+# =============================================================================
+class Game_System
+  attr_reader :time
+  
+  alias theo_coretime_init initialize
+  def initialize
+    theo_coretime_init
+    @time = TimeSystem.new
+  end
+  
+end
+
+class Game_Interpreter
+  
+  def advanced(minute, hour = 0, day = 0)
+    time.forward(minute)
+    time.forward_hour(hour)
+    time.forward_day(day)
+  end
+  
+  def roll_back(minute, hour = 0, day = 0)
+    time.backward(minute)
+    time.backward_hour(hour)
+    time.backward_day(day)
+  end
+  
+  def set_time(minute, hour = 0, day = 0)
+    time.forward(minute - time.minute)
+    time.forward_hour(hour - time.hour)
+    time.forward_day(day - time.day)
+  end
+  
+  def time
+    $game_system.time
+  end
+  
+end
+
+class << DataManager
+  
+  alias theo_coretime_create_obj create_game_objects
+  def create_game_objects
+    theo_coretime_create_obj
+    $game_system.time.assign_variables
+  end
+  
+end
+
+class TimeSystem
+  # --------------------------------------------------------------------------
+  # Public variables
+  # --------------------------------------------------------------------------
+  attr_accessor :disable_tone
+  attr_reader :tone
+  # --------------------------------------------------------------------------
+  # Module included
+  # --------------------------------------------------------------------------
+  include THEO::Time
+  # --------------------------------------------------------------------------
+  # Initializer methods
+  # --------------------------------------------------------------------------
+  def initialize
+    init_count
+    init_tone
+    @stop = false
+  end
+  
+  def init_count
+    @count = 0
+    @minute = 0
+  end
+  
+  def init_tone
+    @tone = check_tone.clone
+    @tone_target = @current_tone = check_tone
+    @tone_duration = 0
+    @disable_tone = false
+  end
+  # --------------------------------------------------------------------------
+  # General methods
+  # --------------------------------------------------------------------------
+  def start_tone_change(tone, duration)
+    @tone_target = tone.clone
+    @tone_duration = duration
+    @tone = @tone_target.clone if @tone_duration == 0
+  end
+  
+  def check_tone
+    Tones.each do |key, tone|
+      next unless check_hour(key[0],key[1])
+      return tone
+    end
+    return Tone.new
+  end
+  
+  def check_hour(min, max)
+    return hour >= min && hour <= max
+  end
+  
+  def play
+    @stop = false
+  end
+  
+  def stop
+    @stop = true
+  end
+  
+  def stopped?
+    @stop
+  end
+  
+  def time_stopped?
+    ($game_map.interpreter.running? && DisableAtScene) || stopped? ||
+    (MaxHour > 0 ? hour >= MaxHour : false)
+  end
+  
+  def var
+    $game_variables
+  end
+  
+  def assign_variables
+    var[Minute_ID] = minute
+    var[Hour_ID] = hour
+    var[Day_ID] = day
+    var[Week_ID] = week
+  end
+  # --------------------------------------------------------------------------
+  # Frame update methods
+  # --------------------------------------------------------------------------
+  def update
+    update_count
+    update_tone
+  end
+  
+  def update_count
+    return if time_stopped?
+    @count += calculate_count
+    update_time if @count >= 60
+  end
+  
+  def update_time
+    @minute += 1
+    @count = 0
+    on_change
+  end
+  
+  def on_change
+    update_variables
+  end
+  
+  def update_tone
+    @current_tone = check_tone
+    if @tone_target != @current_tone
+      @tone_target = @current_tone
+      start_tone_change(@tone_target, 60)
+    end
+    if @tone_duration > 0
+      d = @tone_duration
+      @tone.red = (@tone.red * (d - 1) + @tone_target.red) / d
+      @tone.green = (@tone.green * (d - 1) + @tone_target.green) / d
+      @tone.blue = (@tone.blue * (d - 1) + @tone_target.blue) / d
+      @tone.gray = (@tone.gray * (d - 1) + @tone_target.gray) / d
+      @tone_duration -= 1
+    end
+  end
+  
+  def calculate_count
+    rate = Custom_MinuteScale[$game_map.tileset.id]
+    return 1.0 / (rate ? rate : Default_MinuteScale) rescue 0
+  end
+  
+  def update_variables
+    if var[Minute_ID] != minute
+      on_minute_change
+    end
+    if var[Hour_ID] != hour
+      on_hour_change
+    end
+    if var[Day_ID] != day
+      on_day_change
+    end
+    if var[Week_ID] != week
+      on_week_change
+    end
+  end
+  # --------------------------------------------------------------------------
+  # On Changes Methods
+  # --------------------------------------------------------------------------
+  def on_minute_change
+    var[Minute_ID] = minute
+  end
+  
+  def on_hour_change
+    var[Hour_ID] = hour
+  end
+  
+  def on_day_change
+    var[Day_ID] = day
+  end
+  
+  def on_week_change
+    var[Week_ID] = week
+  end
+  # --------------------------------------------------------------------------
+  # Advancing and roll back methods
+  # --------------------------------------------------------------------------
+  def forward(minute)
+    @minute += minute
+    on_change
+  end
+  
+  def forward_hour(hour)
+    forward(hour * 60)
+  end
+  
+  def forward_day(day)
+    forward_hour(day * 24)
+  end
+  
+  def backward(minute)
+    forward(-minute)
+  end
+  
+  def backward_hour(hour)
+    backward(hour * 60)
+  end
+  
+  def backward_day(day)
+    backward_hour(day * 24)
+  end
+  # --------------------------------------------------------------------------
+  # Absolut time (without additional time)
+  # --------------------------------------------------------------------------
+  def abs_minute
+    @minute
+  end
+  
+  def abs_hour
+    abs_minute / 60
+  end
+  
+  def abs_day
+    abs_hour / 24
+  end
+  # --------------------------------------------------------------------------
+  # Total time (with additional time)
+  # --------------------------------------------------------------------------
+  def total_minute
+    abs_minute + StartMinute
+  end
+  
+  def total_hour
+    (total_minute / 60) + StartHour
+  end
+  
+  def total_day
+    (total_hour / 24) + StartDay
+  end
+  
+  def week
+    total_day / 7
+  end
+  # --------------------------------------------------------------------------
+  # Real time (with limiter)
+  # --------------------------------------------------------------------------
+  def minute
+    total_minute % 60
+  end
+  
+  def hour
+    total_hour % 24
+  end
+  
+  def day
+    (total_day % 30) + 1
+  end
+  
+end
+
+class Game_Screen
+  
+  alias theo_coretime_tone tone
+  def tone
+    if $game_map.no_time_tone? || $game_system.time.disable_tone
+      return theo_coretime_tone
+    else
+      return $game_system.time.tone
+    end
+  end
+  
+end
+
+class Game_Map
+  
+  def no_time_tone?
+    @map.note.include?("<no time tone>")
+  end
+  
+end
+# ----------------------------------------------------------------------------
+# Window Time just for debug if necessary
+# ----------------------------------------------------------------------------
+class Window_TestTime < Window_Base
+  
+  def initialize
+    super(0,0,130,fitting_height(1))
+    self.visible = false
+    refresh
+  end
+  
+  def time
+    $game_system.time
+  end
+  
+  def refresh
+    contents.clear
+    @minute = time.total_minute
+    text = sprintf("%02d:%02d",time.hour,time.minute)
+    draw_text(0,0,contents.width,line_height,text,1)
+  end
+  
+  def update
+    super
+    if Input.trigger?(:ALT) && $TEST
+      refresh
+      self.visible = !visible
+    end
+    refresh if visible && @minute != $game_system.time.total_minute
+  end
+  
+end
+
+class Scene_Map < Scene_Base
+  
+  alias theo_coretime_start start
+  def start
+    theo_coretime_start
+    @dns = Window_TestTime.new
+  end
+  
+  alias theo_coretime_update update
+  def update
+    theo_coretime_update
+    $game_system.time.update
+  end
+  
+end

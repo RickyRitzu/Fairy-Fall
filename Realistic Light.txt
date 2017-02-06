@@ -1,0 +1,292 @@
+# =============================================================================
+# TheoAllen - Realistic Light
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+if true # <--- Set false disini jika mo ngedisable script ini
+# =============================================================================  
+($imported ||={})[:Theo_RealLight] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.01 - Add disable at specified tileset id
+#            - Add disable by map notetag
+# 2013.05.18 - Adjust random calculation (v0.95b)
+# 2013.05.17 - Bug fixed at switch (v0.95)
+#            - Added some customizations
+#            - Compatibility Patch with various light effect
+#            - Added "use in battle" option
+# 2013.05.15 - Started and Finished script (v0.85)
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini ngebikin map kamu mempunyai light effect secara realistis
+  
+  Cara penggunaan :
+  Pasang diatas main. Tapi dibawah menu. Jangan lupa masukin file2 light
+  (besar harus sesuai screen). Edit konfigurasinya.
+  
+  Kamu bisa tulis tag <no light> pada map notetag kalo kamu pengen ngedisable
+  light pada map tertentu
+  
+  Terms of use:
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module LIGHT
+    # =========================================================================
+      LIST = ["Light_x","Light_2","Light_3","Light_4","Light_5"]
+    # -------------------------------------------------------------------------
+    # Untuk nyatet file yang mau digunain untuk light. File gambar harus ada
+    # dalam folder Graphics/Picture
+    # =========================================================================
+    
+    # =========================================================================
+      DISABLE_SWITCH_ID = 1 
+    # -------------------------------------------------------------------------
+    # Switch ID untuk keperluan disable
+    # Jika switch dengan id tersebut = true, maka light akan hilang
+    # -------------------------------------------------------------------------
+      MIRROR_SWITCH_ID  = 2
+    # -------------------------------------------------------------------------
+    # Switch ID untuk ngebalik light. Kalau bernilai true, maka light akan
+    # dibalik arahnya.
+    # =========================================================================
+    
+    # =========================================================================
+      ORIGINAL_OPACITY = 127
+    # -------------------------------------------------------------------------
+    # Opacity dari gambar asli (default : 127)
+    # -------------------------------------------------------------------------
+      OPACITY_VARIANCE = 127
+    # -------------------------------------------------------------------------
+    # Variansi dari opacity asli. Semisal u masukin 127 dengan original opacity
+    # sama dengan 127, maka opacity cahaya akan berganti antara 0 - 254.
+    # (default : 127)
+    # =========================================================================
+    
+    # =========================================================================
+      RANDOM_FADE      = true # Untuk gunain random fade (true/false)
+    # -------------------------------------------------------------------------
+      MAX_FADE_SPEED   = 4.0 # Nilai maksimum dari kecepatan fade
+      MIN_FADE_SPEED   = 2.0 # Nilai minimum dari kecepatan fade
+    # -------------------------------------------------------------------------
+    # RANDOM_FADE adalah untuk nge-random kecepatan fade dengan jarak
+    # MIN_FADE_SPEED ampe MAX_FADE_SPEED saat cahaya mencapai opacity paling 
+    # rendah. Jadi ada kalanya kecepatan fade bisa lambat atau cepat. 
+    #
+    # Apabila RANDOM_FADE diisi false, maka kecepatan fade tiap light akan
+    # relatif sama. (Nilai yang diambil adalah MAX_FADE_SPEED)
+    # =========================================================================
+    
+    # =========================================================================
+      USE_IN_BATTLE    = true
+    # -------------------------------------------------------------------------
+    # tulis true kalo kamu pengen gunain realistic ligth dalam battle. Tentunya
+    # masih bisa dihilangkan dengan menggunakan switch
+    # =========================================================================
+    
+    # =========================================================================
+      DISABLE_AT_TILESET_ID = [3,4]
+    # -------------------------------------------------------------------------
+    # Untuk ngedisable realistic light pada tileset id tertentu. Misalnya
+    # tileset id untuk map interior adalah 3 (interior rumah) dan 4 (interior
+    # dungeon).
+    # =========================================================================
+    
+  end
+end
+# =============================================================================
+# Batas akhir konfigurasi. Jika ada masalah semacam bug atau compatibility,
+# lapor ke gw segera. Dan ngga usah ngedit2 kecuali ente ngerti :v
+# =============================================================================
+class Sprite_Light < Sprite
+  
+  include THEO::LIGHT
+  
+  def initialize(image, fade_speed, viewport = nil)
+    super(viewport)
+    if image.is_a?(Bitmap)
+      self.bitmap = image
+    else
+      self.bitmap = Cache.picture(image)
+    end
+    @fade_speed = fade_speed
+    @count = rand(360)
+    self.opacity = @original_opacity = ORIGINAL_OPACITY
+  end
+  
+  def update_fade
+    derajat = (@count.to_f/180) * Math::PI
+    self.opacity = @original_opacity + variance(derajat)
+    @count += rand * @fade_speed
+    change_fade_speed if use_random?
+  end
+  
+  def variance(derajat)
+    (Math.sin(derajat) * OPACITY_VARIANCE)
+  end
+  
+  def change_fade_speed
+    @fade_speed = MIN_FADE_SPEED + (rand * (MAX_FADE_SPEED - MIN_FADE_SPEED))
+  end
+  
+  def use_random?
+    RANDOM_FADE && self.opacity == ORIGINAL_OPACITY - OPACITY_VARIANCE
+  end
+  
+end
+
+class Spriteset_Light
+  
+  include THEO::LIGHT
+  
+  def initialize(viewport = nil)
+    @viewport = viewport
+    make_all_lights 
+  end
+  
+  def make_all_lights
+    index = 0
+    @lights = Array.new (LIST.size){
+      fade_speed = RANDOM_FADE ? rand * random_fade_speed : MAX_FADE_SPEED
+      light = Sprite_Light.new(LIST[index],fade_speed,@viewport)
+      index += 1
+      light
+    }
+  end
+  
+  def random_fade_speed
+    MIN_FADE_SPEED + (rand * (MAX_FADE_SPEED - MIN_FADE_SPEED))
+  end
+  
+  def dispose
+    dispose_lights
+  end
+  
+  def dispose_lights
+    @lights.each {|light| light.dispose}
+  end
+  
+  def update
+    @lights.each {|light| 
+      next if light.disposed?
+      light.update_fade
+      light.mirror = $game_switches[MIRROR_SWITCH_ID]
+      }
+  end
+  
+end
+
+class Spriteset_Map
+  
+  alias pre_light_viewports create_viewports
+  def create_viewports
+    pre_light_viewports
+    create_lights
+  end
+  
+  def create_lights
+    return if no_lights?
+    @theo_lights = Spriteset_Light.new unless @theo_lights
+  end
+  
+  def no_lights?
+    THEO::LIGHT::DISABLE_AT_TILESET_ID.any? {|id| id == $game_map.tileset.id} ||
+      $game_map.map.note.include?("<no light>")
+  end
+  
+  alias pre_light_update update
+  def update
+    pre_light_update
+    update_lights
+    check_light_existence
+  end
+  
+  def update_lights
+    @theo_lights.update if @theo_lights
+  end
+  
+  def check_light_existence
+    no_lights? || $game_switches[THEO::LIGHT::DISABLE_SWITCH_ID] ? 
+      dispose_real_lights : create_lights
+  end
+  
+  alias pre_light_dispose dispose
+  def dispose
+    pre_light_dispose
+    dispose_real_lights
+  end
+  
+  def dispose_real_lights
+    if @theo_lights
+      @theo_lights.dispose
+      @theo_lights = nil
+    end
+  end
+  
+end
+
+class Spriteset_Battle
+  
+  alias pre_lights_viewports create_viewports
+  def create_viewports
+    pre_lights_viewports
+    create_realistic_lights
+  end
+  
+  def create_realistic_lights
+    return unless use_realistic_lights?
+    @theo_lights = Spriteset_Light.new(@viewport2) unless @theo_lights
+  end
+  
+  def use_realistic_lights?
+    THEO::LIGHT::USE_IN_BATTLE && !$game_switches[THEO::LIGHT::DISABLE_SWITCH_ID]
+  end
+  
+  alias pre_realistic_update_light update
+  def update
+    pre_realistic_update_light
+    update_realistic_light
+    check_light_existence
+  end
+  
+  def update_realistic_light
+    @theo_lights.update if @theo_lights
+  end
+  
+  def check_light_existence
+    $game_switches[THEO::LIGHT::DISABLE_SWITCH_ID] ? 
+      dispose_real_lights : create_realistic_lights
+  end
+  
+  alias pre_dispose_real_lights dispose
+  def dispose
+    pre_dispose_real_lights
+    dispose_real_lights
+  end
+  
+  def dispose_real_lights
+    if @theo_lights
+      @theo_lights.dispose
+      @theo_lights = nil
+    end
+  end
+  
+end
+
+class Game_Map
+  def map
+    @map
+  end
+end
+
+end

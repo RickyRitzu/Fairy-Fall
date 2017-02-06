@@ -1,0 +1,221 @@
+# =============================================================================
+# TheoAllen - Floating Character
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_FloatChar] = true
+# =============================================================================
+# Change Logs:
+# -----------------------------------------------------------------------------
+# 2013.10.23 - Finished Script
+# =============================================================================
+=begin
+
+  --------------------------------------------------------------------------
+  *) Perkenalan :
+  --------------------------------------------------------------------------
+  Berawal dari gw punya sprite karakter gw Nella Shadowind. Tu karakter punya
+  sayap dan ada pose terbangnya. Tapi, bikin Nella bener-bener kelihatan
+  terbang itu susah. Meski bisa diakalin make event, tapi jadinya mesti aneh.
+  
+  Nah, dari itu maka terciptalah script ini. Script ini bisa ngebikin karakter
+  event bisa seolah-olah terbang atau melayang
+  
+  --------------------------------------------------------------------------
+  *) Cara penggunaan :
+  --------------------------------------------------------------------------
+  Pasang dibawah material namun diatas main.
+  Jangan lupa taruh gambar untuk shadow karakter di Graphics/system. Namain
+  "char_shadow.png".
+  
+  Gunakan set move route > script > dan tulis script call berikut
+  - start_float(h,s)
+  - start_landing(s)
+  Dimana "h" adalah "height" atau ketinggian melayangnya. Dan "s" adalah
+  "speed" untuk mencapai ketinggian itu. Contoh penggunaan :
+  
+  start_float(35,1)  <-- Naek ke ketinggian 35 dengan kecepatan 1 pixel / frame
+  start_landing(1)   <-- Mendarat dengan kecepatan 1 pixel / frame
+  
+  --------------------------------------------------------------------------
+  *) Terms of use :
+  --------------------------------------------------------------------------
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+  
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module Theo
+  module FloatChar
+  
+    FloatPattern  = [0,1,2,3,2,1]
+  # Pattern / pola mengambangnya. Pola ini akan dilooping / diulang. Untuk
+  # pola naik turun, isi aja [0,1,2,1] atau [0,1,2,3,2,1]
+  # Seandainya kamu punya pola lain ya isi aja sendiri
+  
+    FloatRate     = 6
+  # Rate untuk ngerefresh pola ngambangnya. Semakin kecil, semakin cepet.
+  # Tapi inget, minimalnya 1
+  
+    Use_Shadow    = true
+  # Gunain char_shadow ga? (isi true/false)
+  
+    FloatOnly     = false
+  # Shadow ditampilin kalo lagi terbang doank? ato kalo di permukaan juga?
+  # True >> Nampilin kalo karakter lagi ngambang doank
+  # False >> Nampilin meski karakter nyentuh permukaan tanah
+  
+    ShadowOpacity = 88
+  # Nilai transparansi gambar shadow. Antara (0 - 255)
+  
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi
+# =============================================================================
+class Game_CharacterBase
+  attr_accessor :float_high
+  attr_accessor :float_pattern
+  
+  include Theo::FloatChar
+  
+  alias theo_floatchar_init initialize
+  def initialize
+    theo_floatchar_init
+    init_float_member
+  end
+  
+  def init_float_member
+    @float_high = 0
+    @float_pattern = 0
+    @float_count = 0
+    @start_float = false
+    @start_land = false
+    @target_high = 0
+    @float_speed = 0
+  end
+  
+  alias theo_floatchar_screen_y screen_y
+  def screen_y
+    theo_floatchar_screen_y - float_coordinate
+  end
+  
+  alias theo_floatchar_update update
+  def update
+    theo_floatchar_update
+    update_floating
+  end
+  
+  def start_float(heigh, speed = 1)
+    return if float_moving?
+    @float_pattern = 0
+    @target_high = heigh
+    @float_speed = speed
+    if heigh > 0
+      @start_float = true
+    else
+      @start_land = true
+    end
+  end
+  
+  def start_landing(speed = 1)
+    start_float(0, speed)
+  end
+  
+  def float_rate
+    return FloatRate
+  end
+  
+  def update_floating
+    update_start_float
+    if floating? && !float_moving?
+      @float_count += 1
+      if @float_count % float_rate == 0
+        @float_pattern = (@float_pattern + 1) % FloatPattern.size
+      end
+    end
+  end
+  
+  def update_start_float
+    if @start_float
+      @float_high = [@float_high + @float_speed, @target_high].min
+      @start_float = false if @float_high >= @target_high    
+    elsif @start_land
+      @float_high = [@float_high - @float_speed, 0].max
+      @start_land = !(@float_high == 0)
+    end
+  end
+  
+  def float_coordinate
+    return FloatPattern[@float_pattern] + @float_high
+  end
+  
+  def floating?
+    @float_high > 0
+  end
+  
+  def float_moving?
+    @start_float || @start_land
+  end
+  
+end
+
+class Char_Shadow < Sprite
+  
+  def initialize(char, viewport)
+    @char = char
+    super(viewport)
+    self.bitmap = Cache.system("char_shadow")
+    self.ox = width/2
+    self.oy = height
+    self.opacity = Theo::FloatChar::ShadowOpacity
+    update_visibility
+  end
+  
+  def update
+    super
+    update_visibility
+    self.x = @char.screen_x
+    self.y = @char.theo_floatchar_screen_y
+  end
+  
+  def update_visibility
+    self.visible = visibility_case
+  end
+  
+  def visibility_case
+    !@char.character_name.empty? && 
+      (Theo::FloatChar::FloatOnly ? @char.floating? : true)
+  end
+  
+end
+
+class Sprite_Character < Sprite_Base
+  
+  alias theo_floatchar_init initialize
+  def initialize(viewport, character = nil)
+    theo_floatchar_init(viewport, character)
+    if !character.is_a?(Game_Vehicle) && Theo::FloatChar::Use_Shadow
+      @char_shadow = Char_Shadow.new(character, viewport)
+      @char_shadow.z = self.z - 1
+      @char_shadow.update
+    end
+  end
+  
+  alias theo_floatchar_update update
+  def update
+    theo_floatchar_update
+    @char_shadow.update if @char_shadow
+  end
+  
+  alias theo_floatchar_dispose dispose
+  def dispose
+    theo_floatchar_dispose
+    @char_shadow.dispose if @char_shadow
+  end
+  
+end

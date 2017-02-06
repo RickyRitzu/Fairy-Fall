@@ -1,0 +1,176 @@
+# =============================================================================
+# TheoAllen - Event Pointers
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# -----------------------------------------------------------------------------
+# Requires :
+# >> Theo - Basic Modules
+# =============================================================================
+($imported ||= {})[:Theo_EventPointer] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.09 - Finised script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini bisa bikin kamu ngedraw line / panah untuk nunjuk dari event ke 
+  event lain.
+  
+  Cara penggunaan :
+  pasang dibawah material namun diatas main
+  tulis script call sebagai berikut
+  
+  ----------------------------------------------------------------------
+  Untuk naruh line :
+  - set_arrow(pangkal,ujung)
+  - set_line(pangkal,ujung)
+  
+  Contoh penerapan :
+  - set_arrow($game_map.events[1],$game_map.events[2])
+  Ngeset panah dari event id 1 ke event id 2
+  
+  ----------------------------------------------------------------------
+  - clear_arrow
+  - clear_line
+  untuk bersihin layar
+  
+  TERMS OF USE :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+
+=end
+# =============================================================================
+# Tidak ada konfigurasi
+# =============================================================================
+class Game_System
+  attr_accessor :arrow_vectors
+  attr_accessor :line_vectors
+  
+  alias pre_pointer_member_init initialize
+  def initialize
+    pre_pointer_member_init
+    init_pointer_members
+  end
+  
+  def init_pointer_members
+    @arrow_vectors = []
+    @line_vectors  = []
+  end
+  
+end
+
+class Game_Interpreter
+  
+  def set_arrow(pangkal,ujung,color = Color.new(255,255,255))
+    vector = VectorObject.new(pangkal,ujung,color)
+    vector.offset_y -= 16
+    $game_system.arrow_vectors.push(vector)
+  end
+  
+  def set_line(pangkal,ujung,color = Color.new(255,255,255))
+    vector = VectorObject.new(pangkal,ujung,color)
+    vector.offset_y -= 16
+    $game_system.line_vectors.push(vector)
+  end
+  
+  def clear_arrow
+    $game_system.arrow_vectors = []
+  end
+  
+  def clear_line
+    $game_system.line_vectors = []
+  end
+  
+  def clear_all
+    $game_system.init_pointer_members
+  end
+  
+end
+
+class Sprite_Arrows < Sprite_Screen
+  
+  def update
+    super
+    self.bitmap.clear
+    $game_system.arrow_vectors.each do |vector|
+      bitmap.draw_arrow(vector.to_v,vector.color)
+    end
+  end
+  
+end
+
+class Sprite_Lines < Sprite_Screen
+  
+  def update
+    super
+    self.bitmap.clear
+    $game_system.line_vectors.each do |vector|
+      bitmap.draw_line(vector.to_v,vector.color)
+    end
+  end
+  
+end
+
+class Spriteset_Map
+  
+  alias pre_pointer_viewports create_viewports
+  def create_viewports
+    pre_pointer_viewports
+    create_arrow_sprite
+    create_line_sprite
+  end
+  
+  def create_arrow_sprite
+    @arrows = Sprite_Arrows.new(@viewport2)
+  end
+  
+  def create_line_sprite
+    @lines = Sprite_Lines.new(@viewport2)
+  end
+  
+  alias pre_pointers_update update
+  def update
+    pre_pointers_update
+    update_arrow_pointers
+    update_line_pointers
+  end
+  
+  def update_arrow_pointers
+    @arrows.update
+  end
+  
+  def update_line_pointers
+    @lines.update
+  end
+  
+  alias pre_pointers_dispose dispose
+  def dispose
+    pre_pointers_dispose
+    dispose_arrows
+    dispose_lines
+  end
+  
+  def dispose_arrows
+    @arrows.dispose
+  end
+  
+  def dispose_lines
+    @lines.dispose
+  end
+  
+end
+
+class Scene_Map < Scene_Base
+  
+  alias pointer_post_transfer post_transfer
+  def post_transfer
+    $game_system.init_pointer_members
+    pointer_post_transfer
+  end
+  
+end

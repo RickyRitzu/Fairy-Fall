@@ -1,0 +1,58 @@
+# =============================================================================
+# TheoAllen - Simple Diagonal Movement
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (English Documentation)
+# =============================================================================
+($imported ||= {})[:Theo_DiagonalMove] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.28 - Finished snippet
+# =============================================================================
+=begin
+
+  Introduction :
+  This script allow you to move the actor in diagonal direction.
+  
+  How to use :
+  Just simply put this script below material but above.
+  If you use Theo - Force Stop Movements, place this script above it.
+  
+  Terms of use :
+  This just a simple script. You're free to edit by your own or even use in 
+  commercial purposes. Credit isn't neccessary. But I would be thankful if
+  you put my name in credit list.
+
+=end
+# =============================================================================
+# No custom configuration.
+# =============================================================================
+class Game_Player < Game_Character
+  
+  # -------------------------------------------------------------------------
+  # Overwrite move by input
+  # -------------------------------------------------------------------------
+  def move_by_input
+    return if !movable? || $game_map.interpreter.running?
+    case Input.dir8
+    when 1
+      move_diagonal(4,2)
+    when 2
+      move_straight(2)
+    when 3
+      move_diagonal(6,2)
+    when 4
+      move_straight(4)
+    when 6
+      move_straight(6)
+    when 7
+      move_diagonal(4,8)
+    when 8
+      move_straight(8)
+    when 9
+      move_diagonal(6,8)
+    end
+  end
+  
+end

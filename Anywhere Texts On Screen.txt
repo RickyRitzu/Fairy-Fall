@@ -1,0 +1,289 @@
+# =============================================================================
+# TheoAllen - Anywhere Texts On Screen
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_AnywhereText] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.08.26 - Finished script
+# 2013.08.25 - Started script
+# =============================================================================
+=begin
+  
+  ----------------------------------------------------------------------------
+  Perkenalan :
+  Script ini ngebikin kamu bisa nulis text di screen
+  
+  ----------------------------------------------------------------------------
+  How to use :
+  Pasang dibawah material namun diatas main
+  Baca manualnya
+  
+  ----------------------------------------------------------------------------
+  Script calls :
+  Tulis script call kek gini buat nambahin text di screenmu
+  
+  text(key,x,y,text,z,show,width,height,color1,color2)
+  
+  Parameter yang harus diisi:
+  - key  >> Adalah hash key. Kamu boleh ngisi angka ato string. Ini ntar 
+            digunain buat ngehapus textmu dari screen
+  - x    >> Koordinat X dari pojok kiri atas
+  - y    >> Koordinat Y dari pojok kiri atas
+  - text >> Adalah text yang pengen kamu tampilin di screen. Kamu juga bisa
+            escape character kek \N[1] sama kek di show text. Cuman kamu harus
+            make double slash. Jadinya gini \\N[1]
+  
+  Parameter yang bisa diabaikan :
+  - z      >> Koordinat Z dari screen. Makin besar, makin deket ama player
+              textnya. Kalo parameter ini diabakan, nilai defaultnya adalah 0
+  - show   >> Durasi ditampilin dalam frame. Kalo kamu pengen textmu tetep ada
+              di screen ampe kamu hapus manual, isi -1. Defaultnya kalo ngga
+              diisi adalah -1
+  - width  >> Nilai lebar yang ntar digunain buat gambar kotakan
+  - height >> Nilai tinggi yang ntar digunain buat gambar kotakan
+  - color1 >> Warna dari kotakan yang mau digambar. Harus diisi dengan
+              Color.new(red, green, blue, alpha)
+  - color2 >> Warna kedua dari kotakan yg mau digambar. Defaultnya adalah sama
+              dengan color1
+  
+  Buat ngehapus text tertentu, gunain
+  del_text(key)
+  
+  Key adalah hash key. Sama kek diatas
+  
+  Buat ngehapus screen dari text, gunain
+  clear_texts
+  
+  ----------------------------------------------------------------------------
+  Terms of Use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.  
+
+=end
+# =============================================================================
+# Ngga ada konfigurasi
+# Jangan sentuh apapun sesudah line ini.
+# =============================================================================
+class Game_Interpreter
+  
+  def text(key,x,y,text,z = 0,show = -1, width = 0, height = 0, 
+      color1 = Color.new, color2=color1)
+    return if $game_system.anytexts.include?(key)
+    txt = TextDTStruct.new(key,x,y,z,width,height,text,show,color1,color2)
+    $game_system.anytexts[key] = txt
+    $game_temp.text_to_add = key
+    Fiber.yield
+  end
+  
+  def del_text(key)
+    return unless $game_system.anytexts.include?(key)
+    $game_temp.text_to_delete = key
+    Fiber.yield
+  end
+  
+  def clear_texts
+    $game_system.anytexts.keys.each do |key|
+      del_text(key)
+    end
+  end
+  
+end
+
+class Game_Temp
+  attr_accessor :text_to_delete
+  attr_accessor :text_to_add
+  
+  alias theo_anytext_init initialize
+  def initialize
+    theo_anytext_init
+    @text_to_delete = nil
+    @text_to_add = nil
+  end
+  
+end
+
+class Game_System
+  attr_reader :anytexts
+  
+  alias theo_anytext_init initialize
+  def initialize
+    theo_anytext_init
+    @anytexts = {}
+  end
+  
+end
+
+class TextDTStruct
+  attr_accessor :key
+  attr_accessor :x
+  attr_accessor :y
+  attr_accessor :z
+  attr_accessor :width
+  attr_accessor :height
+  attr_accessor :text
+  attr_accessor :show
+  attr_accessor :color1
+  attr_accessor :color2
+  
+  def initialize(key, x, y, z, width, height, text, show, color1, color2)
+    @key = key
+    @x = x
+    @y = y
+    @z = z
+    @width = width
+    @height = height
+    @text = text
+    @show = show
+    @color1 = color1
+    @color2 = color2
+  end
+  
+end
+
+class Anywhere_Text < Window_Base
+  attr_reader :key
+  
+  def initialize(key,viewport)
+    pad = standard_padding
+    super(-pad,-pad,Graphics.width+pad,Graphics.height+pad)
+    self.viewport = viewport
+    self.opacity = 0
+    load_data(key)
+    draw_contents
+  end
+  
+  def load_data(key)
+    @data = $game_system.anytexts[key]
+    @key = @key
+    @text = @data.text
+    @xpos = @data.x
+    @ypos = @data.y
+    @w = @data.width
+    @h = @data.height
+    @color1 = @data.color1
+    @color2 = @data.color2
+    self.z = @data.z
+  end
+  
+  def draw_contents
+    rect = Rect.new(@xpos,@ypos,@w,@h)
+    contents.gradient_fill_rect(rect,@color1,@color2)
+    draw_text_ex(@xpos,@ypos,@text)
+  end
+  
+  def update
+    super
+    update_dispose
+  end
+  
+  def update_dispose
+    @data.show = [@data.show - 1,-1].max
+    dispose if @data.show == 0
+  end
+  
+end
+
+class Text_Hash
+  
+  def initialize(viewport = nil)
+    @viewport = viewport
+    @data = {}
+    init_used_text
+  end
+  
+  def init_used_text
+    $game_system.anytexts.keys.each do |key|
+      add(key)
+    end
+  end
+  
+  def update
+    update_disposed
+    update_delete
+    update_add
+    update_text
+  end
+  
+  def update_disposed
+    @data.values.each do |text|
+      next unless text.disposed?
+      delete(text.key)
+    end
+  end
+  
+  def update_delete
+    del_key = $game_temp.text_to_delete
+    unless del_key.nil?
+      delete(del_key)
+      $game_temp.text_to_delete = nil
+    end
+  end
+  
+  def update_add
+    add_key = $game_temp.text_to_add
+    unless add_key.nil?
+      add(add_key)
+      $game_temp.text_to_add = nil
+    end
+  end
+  
+  def update_text
+    @data.values.each {|text| text.update unless text.disposed?}
+  end
+  
+  def delete(key)
+    text = @data.delete(key)
+    $game_system.anytexts.delete(key)
+    return unless text
+    text.dispose
+  end
+  
+  def add(key)
+    new_text = Anywhere_Text.new(key,@viewport)
+    @data[key] = new_text
+  end
+  
+  def dispose
+    @data.values.each {|text| text.dispose}
+  end
+  
+end
+
+class Spriteset_Map
+  
+  alias theo_anytext_crv create_viewports
+  def create_viewports
+    theo_anytext_crv
+    create_anytexts
+  end
+  
+  def create_anytexts
+    @anytexts = Text_Hash.new(@viewport2)
+  end
+  
+  alias theo_anytext_update update
+  def update
+    theo_anytext_update
+    update_anytexts
+  end
+  
+  def update_anytexts
+    @anytexts.update
+  end
+  
+  alias theo_anytext_dispose dispose
+  def dispose
+    theo_anytext_dispose
+    dispose_anytexts
+  end
+  
+  def dispose_anytexts
+    @anytexts.dispose
+  end
+  
+end

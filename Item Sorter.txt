@@ -1,0 +1,199 @@
+# =============================================================================
+# TheoAllen - Item Sorter
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_ItemSorter] = true
+# =============================================================================
+# Change Logs:
+# -----------------------------------------------------------------------------
+# 2013.10.18 - Finished Script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini membuat kamu bisa sorting item berdasar nama, id atau pricenya
+  
+  Cara penggunaan :
+  Pasang script ini dibawah material namun diatas main
+  Edit konfigurasinya kalau diperlukan. Ato kamu make settingan default ini aja
+  juga bisa
+  
+  Terms of use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+  
+=end
+# =============================================================================
+# Konfigurasi
+# =============================================================================
+module Theo
+  module Sorter
+    
+  # -----------------------------------------------------------------------
+    Sorter_Commands = [ # <-- Jangan dihapus
+  # -----------------------------------------------------------------------
+  # Command buat sorting. Yang kamu perbolehkan disini adalah untuk mengedit
+  # isi dari text yang dibungkus oleh kutip (""). Dan membolak-balik urutan
+  # dibawah ini. Jangan sekali-sekali ngedit symbol (text yg diawali :)
+  # seperti :sort_id
+    
+    [:sort_id, "Sort by ID"],
+    [:sort_az, "Sort by A-Z"],
+    [:sort_za, "Sort by Z-A"],
+    [:sort_lowprice, "Sort by lowest price"],
+    [:sort_highprice, "Sort by highest price"],
+    
+    ] # <-- Jangan dihapus
+  # -----------------------------------------------------------------------  
+  
+    Sorter_Width  = 220
+    # Lebar window buat sortingnya
+    
+    Sorter_Key    = :ALT
+    # Key buat munculin command untuk sorting. Kamu bisa masukin key seperti
+    # :SHIFT, :CTRL, :ALT atau bahkan :F5 - :F9
+    
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi
+# =============================================================================
+class Window_Sorter < Window_Command
+  
+  def initialize(item_window)
+    super(0,0)
+    self.openness = 0
+    @item_window = item_window
+    @item_window.setup_sorter_handler(self)
+    update_placement
+    deactivate
+  end
+  
+  def make_command_list
+    Theo::Sorter::Sorter_Commands.each do |cmd|
+      add_command(cmd[1], cmd[0])
+    end
+  end
+  
+  def window_width
+    return Theo::Sorter::Sorter_Width
+  end
+  
+  def update
+    super
+    update_placement
+  end
+  
+  def update_placement
+    self.y = @item_window.y
+    if @item_window.index % 2 == 0
+      self.x = Graphics.width - width
+    else
+      self.x = 0
+    end
+  end
+  
+end
+
+class Window_ItemList < Window_Selectable
+  
+  alias theo_itemsort_init initialize
+  def initialize(*args)
+    @sort_type = :sort_id
+    theo_itemsort_init(*args)
+  end
+  
+  alias theo_itemsort_make_item_list make_item_list
+  def make_item_list
+    theo_itemsort_make_item_list
+    case @sort_type
+    when :sort_az
+      @data.sort! {|a,b| a.name <=> b.name }
+    when :sort_za
+      @data.sort! {|a,b| b.name <=> a.name }
+    when :sort_id
+      @data.sort! {|a,b| a.id <=> b.id }
+    when :sort_lowprice
+      @data.sort! {|a,b| a.price <=> b.price }
+    when :sort_highprice
+      @data.sort!{|a,b| b.price <=> a.price }
+    end
+  end
+  
+  alias theo_itemsort_process_handling process_handling
+  def process_handling
+    theo_itemsort_process_handling
+    open_sorter if Input.trigger?(Theo::Sorter::Sorter_Key) && @sorter && 
+      active && open?
+  end
+  
+  def open_sorter
+    Sound.play_ok
+    Input.update
+    deactivate
+    @sorter.open
+    @sorter.activate
+  end
+  
+  def setup_sorter_handler(sorter)
+    @sorter = sorter
+    @sorter.viewport = viewport
+    @sorter.set_handler(:sort_az, method(:sort_by_az))
+    @sorter.set_handler(:sort_za, method(:sort_by_za))
+    @sorter.set_handler(:sort_id, method(:sort_by_id))
+    @sorter.set_handler(:sort_lowprice, method(:sort_lowprice))
+    @sorter.set_handler(:sort_highprice, method(:sort_highprice))
+    @sorter.set_handler(:cancel, method(:deactivate_sorter))
+  end
+  
+  def deactivate_sorter
+    Input.update
+    @sorter.close
+    @sorter.deactivate
+    self.activate
+  end
+  
+  def sort_by_az
+    @sort_type = :sort_az
+    deactivate_sorter
+    refresh
+  end
+  
+  def sort_by_za
+    @sort_type = :sort_za
+    deactivate_sorter
+    refresh
+  end
+  
+  def sort_by_id
+    @sort_type = :sort_id
+    deactivate_sorter
+    refresh
+  end
+  
+  def sort_lowprice
+    @sort_type = :sort_lowprice
+    deactivate_sorter
+    refresh
+  end
+  
+  def sort_highprice
+    @sort_type = :sort_highprice
+    deactivate_sorter
+    refresh
+  end
+  
+end
+
+class Scene_Item < Scene_ItemBase
+  
+  alias theo_itemsort_start start
+  def start
+    theo_itemsort_start
+    @sorter = Window_Sorter.new(@item_window)
+  end
+  
+end

@@ -1,0 +1,83 @@
+# =============================================================================
+# TheoAllen - Footstep Sound
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_FootSound] = true
+# =============================================================================
+# Change Logs:
+# -----------------------------------------------------------------------------
+# 2013.11.16 - Finished script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini membuat setiap player berjalan di tileset tertentu, membunyikan
+  Sound Effect
+  
+  Cara penggunaan :
+  Pasang script ini dibawah material namun diatas main
+  Edit konfigurasinya semaumu
+  
+  Terms of use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.    
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module Theo
+  module FSound
+  # --------------------------------------------------------------------------
+    RegionMode = true
+  # --------------------------------------------------------------------------
+  # Untuk menentukan kamu menggunakan region atau terrain tag. Jika kamu set
+  # settingan ini ke true, maka setiap player masuk ke region tertentu, SE
+  # akan dimainkan. Jika false, maka bergantung pada terrain tag
+  # --------------------------------------------------------------------------
+  
+  # --------------------------------------------------------------------------
+    List = {  # <-- Jangan disentuh
+  # --------------------------------------------------------------------------
+  # Disini tempat kamu mendefinisikan Sound Effect yang akan kamu gunakan.
+  # Formatnya adalah sebagai beikut :
+  #
+  # ID => RPG::SE.new("Nama",vol,pitch),
+  #
+  # - ID      >> ID Tileset player (Region / Terrain Tag)
+  # - "Nama"  >> Nama SE yang ada di Audio/SE
+  # - vol     >> Volume SE (0 - 100)
+  # - pitch   >> Nilai Pitch (50 - 150)
+  # --------------------------------------------------------------------------
+  
+      1 => RPG::SE.new("Knock",80,150),
+      
+    # Tambahin sendiri disini
+    # Dan disini
+    # Jangan lupa komma
+      
+  # --------------------------------------------------------------------------
+    } # <-- Jangan disentuh
+    
+  end
+end
+# =============================================================================
+# Akhir dari konfig
+# =============================================================================
+class Game_Player < Game_Character
+  
+  alias theo_fsound_increase_steps increase_steps
+  def increase_steps
+    theo_fsound_increase_steps
+    sound = Theo::FSound::List[fsound_tile_data_id]
+    sound.play if sound
+  end
+  
+  def fsound_tile_data_id
+    Theo::FSound::RegionMode ? region_id : terrain_tag
+  end
+  
+end

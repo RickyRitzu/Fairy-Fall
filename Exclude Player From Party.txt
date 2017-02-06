@@ -1,0 +1,153 @@
+# =============================================================================
+# TheoAllen - Exclude Player From Party
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_Explayer] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.10.13 - Finished script
+# =============================================================================
+=begin
+
+  ----------------------------------------------------------------------------
+  Perkenalan :
+  ----------------------------------------------------------------------------
+  Script ini ngebikin portrait player tidak ikut dalam party member. Dalam
+  artian, portrait player adalah individu dan tidak ikut dalam battle
+  
+  ----------------------------------------------------------------------------
+  Cara penggunaan :
+  ----------------------------------------------------------------------------
+  Pasang script ini dibawah material namun diatas main
+  Edit konfigurasinya untuk inisialisasi nama dan grafis yang digunakan
+  untuk player
+  
+  Tulis \PN untuk mencetak nama player dalam message box
+  Tulis "input_player_name(n)" tanpa kutip dalam script call untuk memasukkan 
+  nama player dimana n adalah jumlah maksimal huruf yang akan dimasukkan
+  
+  ----------------------------------------------------------------------------
+  Terms of use :
+  ----------------------------------------------------------------------------
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.  
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module Theo
+  module Player
+    
+    Name       = "Ralph"
+  # Nama player. Untuk dipergunakan dengan code \PN
+    CharName   = "Actor1"
+  # Nama file gambar sprite untuk player
+    CharIndex  = 0
+  # Index gambar sprite untuk player. Dimulai dari 0 - 7
+    FaceName   = "Actor1"
+  # Nama file gambar faceset untuk player
+    FaceIndex  = 0
+  # Index gambar face untuk player. Dimulai dari 0 - 7
+  
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi
+# =============================================================================
+class Game_Player < Game_Character
+  attr_accessor :character_name
+  attr_accessor :character_index
+  attr_accessor :face_name
+  attr_accessor :face_index
+  attr_accessor :name
+  
+  alias theo_explayer_init initialize
+  def initialize
+    theo_explayer_init
+    init_explayer_variables
+  end
+  
+  def init_explayer_variables
+    @character_name = Theo::Player::CharName
+    @character_index = Theo::Player::CharIndex
+    @face_name = Theo::Player::FaceName
+    @face_index = Theo::Player::FaceIndex
+    @name = Theo::Player::Name
+  end
+  # ---------------------------------------------------------------------------
+  # Overwrite refresh
+  # ---------------------------------------------------------------------------
+  def refresh
+    @followers.refresh
+  end
+  
+end
+
+class Game_Followers
+  # ---------------------------------------------------------------------------
+  # Overwrite Game Followers initialize
+  # ---------------------------------------------------------------------------
+  def initialize(leader)
+    @visible = $data_system.opt_followers
+    @gathering = false                    
+    @data = []
+    @data.push(Game_Follower.new(0, leader))
+    (1...$game_party.max_battle_members).each do |index|
+      @data.push(Game_Follower.new(index, @data[-1]))
+    end
+  end
+end
+
+class Window_Base < Window
+  
+  alias theo_explayer_esc_chars convert_escape_characters
+  def convert_escape_characters(text)
+    result = theo_explayer_esc_chars(text)
+    result.gsub!(/\ePN/i) { $game_player.name }
+    result
+  end
+  
+end
+
+class Game_Interpreter
+  
+  def input_player_name(max_char)
+    SceneManager.input_player_name(max_char)
+  end
+  
+end
+
+class << SceneManager
+  
+  def input_player_name(max_char)
+    call(Scene_PlayerName)
+    scene.prepare(max_char)
+  end
+  
+end
+
+class Scene_PlayerName < Scene_MenuBase
+  
+  def prepare(max_char)
+    @max_char = max_char
+  end
+  
+  def start
+    super
+    @actor = $game_player
+    @edit_window = Window_NameEdit.new(@actor, @max_char)
+    @input_window = Window_NameInput.new(@edit_window)
+    @input_window.set_handler(:ok, method(:on_input_ok))
+  end
+  
+  def on_input_ok
+    @actor.name = @edit_window.name
+    return_scene
+  end
+  
+end

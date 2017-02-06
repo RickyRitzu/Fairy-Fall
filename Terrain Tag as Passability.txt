@@ -1,0 +1,97 @@
+# =============================================================================
+# TheoAllen - Terrain Tag as Passability
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_TagPassability] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.21 - Finished script
+# =============================================================================
+=begin
+
+  Perkenalan : 
+  Script ini berfungsi untuk menggunakan terrain tag sebagai passability 
+  disamping menggunakan X dan O.
+  
+  Cara penggunaan :
+  Pasang dibawah material namun diatas main
+  Setelah kamu selesai menyetting terrain tag dalam database, gunakan comment
+  pada event
+  
+  <terrain tag: n>
+  <terrain tag: m,n>
+  <terrain tag: m,n, ...>
+  
+  Dimana n dan m adalah angka terrain tag. Kamu bisa menambahkan angka sebanyak
+  kamu mau. misalnya <terrain tag: 1,2,3,4,5,6>
+  
+  Ingat, jika sebuah event sudah ditentukan terrain tagnya, maka event itu
+  tidak akan bisa bergerak walaupun di tile dengan passability O
+  
+  Terms of use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+
+=end
+# =============================================================================
+# Tidak ada konfigurasi
+# =============================================================================
+module THEO
+  module MAP
+  module REGEXP
+    TAGS = /<(?:TERRAIN_TAG|terrain tag):[ ]*[ ]*(\d+(?:\s*,\s*\d+)*)>/i
+  end
+  end
+end
+
+class Game_Event < Game_Character
+  
+  alias ori_passable? map_passable?
+  def map_passable?(x,y,d)
+    return ori_passable?(x,y,d) if @tag_passable.empty?
+    return tag_passable?(x,y,d)
+  end  
+  
+  
+  def read_tag_passability
+    @tag_passable = []
+    @list.each do |command|
+      next unless command.code == 108 || command.code == 408
+      case command.parameters[0]
+      when THEO::MAP::REGEXP::TAGS
+        $1.scan(/\d+/).each do |num|
+          puts num.to_i
+          @tag_passable.push(num.to_i)
+        end
+      end
+    end
+  end
+  
+  def tag_passable?(x,y,d)
+    x2 = $game_map.round_x_with_direction(x, d)
+    y2 = $game_map.round_y_with_direction(y, d)
+    @tag_passable.include?($game_map.terrain_tag(x2,y2))
+  end
+  
+end
+
+class Game_Map
+  
+  alias pre_tag_setup setup
+  def setup(map_id)
+    pre_tag_setup(map_id)
+    setup_event_passability
+  end
+  
+  def setup_event_passability
+    @events.values.each do |event|
+      event.read_tag_passability
+    end
+  end
+  
+end

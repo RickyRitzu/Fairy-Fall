@@ -1,0 +1,6 @@
+Font.default_name = ["Comic Sans MS"]
+Font.default_size = 24
+Font.default_bold = false
+Font.default_italic = false
+Font.default_shadow = false
+Font.default_outline = false

@@ -1,0 +1,132 @@
+# ============================================================================
+# TheoAllen - STORM EFFECTS ~
+# Version : 1.0b
+# Author : TheoAllen
+# Contact : www.rpgmakerid.com
+# (This script documentation is written in informal indonesian language)
+# ============================================================================
+$imported = {} if $imported.nil?
+$imported[:Theo_Storm] = true
+module THEO
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.05.02 - Nambahin dokumentasi lebih detil
+#            - Nambahin konfigurasi SE
+# 2013.04.14 - Started and Finished script
+# =============================================================================
+=begin
+  
+  PENGENALAN :
+  Script ini untuk membuat effect storm / badai dengan menambahkan effect
+  macem kilatan petir dan effect suara petir menggelegar.
+
+  PENGGUNAAN :
+  Tulis dalam script call :
+  - THEO.thunder_on     >> nyalain effect suara petir
+  - THEO.thunder_off    >> matiin effect suara petir
+  - THEO.flash_on       >> nyalain effect flashing screen
+  - THEO.flash_off      >> matiin effect flasing screen
+  
+  Untuk ganti chance efeknya:
+  - THEO.thunder_chance(chance,dice) >> chance/dice (masukinnya berupa angka)
+  - THEO.flash_chance(chance,dice) >> sama kek thunder :v
+  
+  TERMS OF USE :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+  
+=end
+# ============================================================================  
+# Konfigurasi :
+# ============================================================================
+
+  THUNDER_CHANCE  = [10,1000]   # nilai default thunder chance
+  FLASH_CHANCE    = [ 5,1000]   # nilai default flash chance
+  THUNDER_SE      = "Thunder9"  # file untuk SE petir
+
+# ============================================================================
+# Setelah line ini jangan diedit kecuali ente ngerti ~
+# ============================================================================  
+  def self.thunder_chance(chance,dice)
+    $game_system.thunder_chance = [chance,dice].dup
+  end
+  
+  def self.flash_chance(chance,dice)
+    $game_system.flash_chance = [chance,dice].dup
+  end
+  
+  def self.thunder_on
+    $game_system.thunder_switch = true
+  end
+  
+  def self.thunder_off
+    $game_system.thunder_switch = false
+  end
+  
+  def self.flash_on
+    $game_system.flash_switch = true
+  end
+  
+  def self.flash_off
+    $game_system.flash_switch = false
+  end
+  
+end
+
+class Game_System
+  attr_accessor :flash_chance
+  attr_accessor :flash_switch
+  attr_accessor :thunder_chance
+  attr_accessor :thunder_switch
+  
+  alias theolized_storm_init initialize
+  def initialize
+    theolized_storm_init
+    @flash_chance = THEO::THUNDER_CHANCE.dup
+    @flash_switch = false
+    @thunder_chance = THEO::FLASH_CHANCE.dup
+    @thunder_switch = false
+  end
+  
+end
+
+class Scene_Map < Scene_Base
+  
+  alias vg_update update
+  def update
+    vg_update
+    apply_effects
+  end
+  
+  def apply_effects
+    apply_flashing_screen if system.flash_switch
+    apply_thunder_bgs if system.thunder_switch
+  end
+  
+  def apply_flashing_screen
+    chance = (rand*system.flash_chance[1]).round
+    if chance <= system.flash_chance[0]
+      color = Color.new(255,255,255,(rand*255).round)
+      screen.start_flash(color,(rand*30).round)
+    end
+  end
+  
+  def apply_thunder_bgs
+    chance = (rand*system.thunder_chance[1]).round
+    if chance <= system.flash_chance[0]
+      file = sprintf("Audio/SE/%s",THEO::THUNDER_SE)
+      Audio.se_play(file,(rand*60).round)
+    end
+  end
+  
+  def screen
+    $game_map.screen
+  end
+  
+  def system
+    $game_system
+  end
+  
+end

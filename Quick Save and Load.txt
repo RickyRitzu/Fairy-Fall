@@ -1,0 +1,199 @@
+# =============================================================================
+# TheoAllen - Quick save and load
+# Version : 1.1
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_Quick] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# - 2013.05.11 - Nambahin switch id
+# - 2013.05.04 - Script selesai
+# =============================================================================
+=begin
+
+  PERKENALAN : 
+  Script ini untuk memungkinkan player untuk save game dengan cara menekan
+  tombol tertentu. Save file akan disimpan dalam index tertentu juga
+  
+  CARA PENGGUNAAN :
+  Pasang script ini diatas main namun dibawah material
+  edit konfigurasinya dibawah:
+  
+  TERMS OF USE :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+=end
+# =============================================================================
+# KONFIGURASI :
+# =============================================================================
+module THEO
+  module SAVE
+    
+    SAVE_BUTTON = :F5   # Tombol untuk save game
+    LOAD_BUTTON = :F8   # Tombol untuk load game
+    
+    INDEX = 0 # Index untuk save game (dimulai dari 0)
+    
+    SHOW_COUNT  = 150 # Lamanya notify diliatin (default : 150)
+    FADEIN      = 16  # Kecepatan fadein notify (default : 16)
+    FADEOUT     = 16  # Kecepatan fadeout notify (default : 16)
+    
+    SAVE_NOTIFY = "Game Saved"
+    # Untuk text notify pas save
+    
+    LOAD_NOTIFY = "Game Loaded"
+    # Untuk text notify pas load
+    
+    SAVE_SWITCH_ID  = 1
+    LOAD_SWITCH_ID  = 1
+    # Untuk keperluan enable ama disable ini dengan menggunakan switch (*NEW)
+    
+  end
+end
+# =============================================================================
+# Batas konfigurasi. Setelah line ini ga perlu diedit
+# =============================================================================
+class Window_Notify < Window_Base
+  
+  def initialize
+    super(Graphics.width - window_width, 0, window_width, fitting_height(1))
+    self.opacity = 0
+    self.contents_opacity = 0
+    @show_count = 0
+    refresh
+  end
+  
+  def update_fadein
+    self.contents_opacity += THEO::SAVE::FADEIN
+  end
+  
+  def update_fadeout
+    self.contents_opacity -= THEO::SAVE::FADEOUT
+  end
+  
+  def refresh
+    contents.clear
+    draw_background(contents.rect)
+    draw_text(0,0,contents.width,contents.height,@notify,1)
+  end
+  
+  def show=(text)
+    @notify = text
+    open
+  end
+  
+  def window_width
+    return 240
+  end
+  
+  def update
+    super
+    if @show_count > 0
+      update_fadein
+      @show_count -= 1
+    else
+      update_fadeout
+    end
+  end
+  
+  def open
+    refresh
+    @show_count = THEO::SAVE::SHOW_COUNT
+    self.contents_opacity = 0
+    self
+  end
+  
+  def close
+    @show_count = 0
+    self
+  end
+  
+  def draw_background(rect)
+    temp_rect = rect.clone
+    temp_rect.width /= 2
+    contents.gradient_fill_rect(temp_rect, back_color2, back_color1)
+    temp_rect.x = temp_rect.width
+    contents.gradient_fill_rect(temp_rect, back_color1, back_color2)
+  end
+  
+  def back_color1
+    Color.new(0, 0, 0, 192)
+  end
+  
+  def back_color2
+    Color.new(0, 0, 0, 0)
+  end
+end
+  
+
+class Scene_Map < Scene_Base
+  
+  alias start_quick_save_load start
+  def start
+    start_quick_save_load
+    create_notify
+    show_load_notify if $game_system.quick_load
+  end
+  
+  def create_notify
+    @notify_window = Window_Notify.new
+    @notify_window.viewport = @viewport
+  end
+  
+  alias quick_save_load_update update
+  def update
+    quick_save_load_update
+    save_file if input_save?
+    load_file if input_load?
+  end
+  
+  def save_file
+    @notify_window.close
+    $game_system.on_before_save
+    DataManager.save_game(THEO::SAVE::INDEX)
+    show_save_notify
+  end
+  
+  def load_file
+    @notify_window.close
+    DataManager.load_game(THEO::SAVE::INDEX)
+    $game_system.on_after_load
+    SceneManager.goto(Scene_Map)
+    $game_system.quick_load = true
+  end
+  
+  def show_save_notify
+    @notify_window.show = THEO::SAVE::SAVE_NOTIFY
+  end
+  
+  def show_load_notify
+    @notify_window.show = THEO::SAVE::LOAD_NOTIFY
+    $game_system.quick_load = false
+  end
+  
+  def input_save?
+    id = THEO::SAVE::SAVE_SWITCH_ID
+    Input.trigger?(THEO::SAVE::SAVE_BUTTON) && (id > 0 ? $game_switches[id] : true)
+  end
+  
+  def input_load?
+    id = THEO::SAVE::LOAD_SWITCH_ID
+    Input.trigger?(THEO::SAVE::LOAD_BUTTON) && (id > 0 ? $game_switches[id] : true)
+  end
+  
+end
+
+class Game_System
+  attr_accessor :quick_load
+  
+  alias pre_quick_init initialize
+  def initialize
+    pre_quick_init
+    @quick_load = false
+  end
+  
+end

@@ -1,0 +1,134 @@
+# =============================================================================
+# TheoAllen - Message Shake
+# Version : 0.8
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_MsgShake] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.09.28 - Started Script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini ngebikin message window kamu bisa bergetar.
+  
+  Cara penggunaan :
+  Pasang script ini dibawah material namun diatas main
+  Gunakan tag <shake> pada show message biar window messagenya bergetar
+  
+  Terms of use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+=end
+# =============================================================================
+# Tidak ada konfigurasi
+# =============================================================================
+class Game_Message
+  attr_reader :shake
+  
+  alias theo_msgshake_clear clear
+  def clear
+    theo_msgshake_clear
+    clear_shake
+  end
+  
+  def clear_shake
+    @shake = false
+  end
+  
+  alias theo_msgshake_add add
+  def add(text)
+    @shake = !(text =~ /<shake>/i).nil?
+    theo_msgshake_add(text.gsub(/<shake>/i) {""})
+  end
+  
+end
+
+class MsgViewport < Viewport
+  
+  def initialize(*args)
+    super(*args)
+    @ox_pattern = create_pattern + create_pattern(true)
+    @count = 0
+    @pattern = 0
+  end
+  
+  def create_pattern(minus = false)
+    num = 2
+    min = 0
+    ary = []
+    (num*2).times do |i|
+      if i >= num
+        min += 1 
+        i -= min
+      end
+      ary.push(i)
+    end
+    return ary.collect {|ptrn| ptrn * -1} if minus
+    return ary
+  end
+  
+  def update
+    super
+    @count += 1
+    if shake? && $game_message.shake
+      update_shake 
+    elsif !$game_message.shake
+      self.ox = 0
+    end
+  end
+  
+  def shake?
+    @count >= count_rate
+  end
+  
+  def count_rate
+    return 1
+  end
+  
+  def update_shake
+    @count = 0
+    update_pattern
+    self.ox = @ox_pattern[@pattern]
+  end  
+  
+  def update_pattern
+    @pattern += 1
+    @pattern = 0 if @pattern > @ox_pattern.size - 1
+  end
+  
+end
+
+class Scene_Map < Scene_Base
+  
+  alias theo_msgshake_start start
+  def start
+    @msg_viewport = MsgViewport.new
+    @msg_viewport.z = 200
+    theo_msgshake_start
+  end
+  
+  alias theo_msgshake_msg_window create_message_window
+  def create_message_window
+    theo_msgshake_msg_window
+    @message_window.viewport = @msg_viewport
+  end
+  
+  alias theo_msgshake_update update
+  def update
+    theo_msgshake_update
+    @msg_viewport.update
+  end
+  
+  alias theo_msgshake_terminate terminate
+  def terminate
+    theo_msgshake_terminate
+    @msg_viewport.dispose
+  end
+  
+end

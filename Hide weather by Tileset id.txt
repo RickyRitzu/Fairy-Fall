@@ -1,0 +1,57 @@
+# =============================================================================
+# TheoAllen - Hide weather by Tileset id
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:Theo_HideWeather] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.14 - Finished snippet
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini untuk sembunyiin weather pas lagi dalam tileset id tertentu
+  
+  Cara pakai :
+  Taruh dibawah material namun diatas main
+  Edit konfigurasi kecilnya
+  
+  Terms of use :
+  Credit gw, sebagai penemu idenya mwahahahaha .....
+  feel free buat diapa-apain
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module MAP
+    
+    # Tileset id untuk ngedisable weather.
+    WEATHER_DISABLE = [3,4]
+    
+  end
+end
+# =============================================================================
+# Itu aja :v
+# =============================================================================
+class Spriteset_Weather
+  
+  alias pre_disable_update update
+  def update
+    pre_disable_update
+    update_visibility
+  end
+  
+  def update_visibility
+    @sprites.each do |spr| 
+      spr.visible = !THEO::MAP::WEATHER_DISABLE.any? do |id| 
+        $game_map.tileset.id == id
+      end
+    end
+  end
+  
+end

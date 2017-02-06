@@ -1,0 +1,109 @@
+# =============================================================================
+# TTS Addon - Common Event Reserver
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# =============================================================================
+($imported ||= {})[:TTS_CommonEvent] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.08.29 - Change update variables workflow + added week 
+# 2013.08.27 - Finished script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini addon dari TheoAllen Time System yang bisa ngebikin kamu
+  ngejalanin common event setiap kali pergantian waktu. 
+  
+  Semisal di setiap pergantian jam kamu menjalankan common event, maka jika
+  kamu skip 5 jam, system juga akan ngejalanin common event sebanyak 5 kali
+  
+  Cara penggunaan :
+  Pasang dibawah TTS - Core versi 1.1
+  Edit konfigurasinya
+  
+  Terms of Use :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+  
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module Time
+    module ComEv
+    # -------------------------------------------------------------------------
+    # Common Event ID (Tulis 0 untuk disable)
+    # -------------------------------------------------------------------------
+      Minute  = 0  # Untuk setiap pergantian menit
+      Hour    = 1  # Untuk setiap pergantian jam
+      Day     = 2  # Untuk setiap pergantian hari
+      Week    = 3  # Untuk setiap pergantian minggu
+    # -------------------------------------------------------------------------
+    end
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi
+# =============================================================================
+class TimeSystem
+  
+  alias theo_comev_res_init initialize
+  def initialize
+    theo_comev_res_init
+    @comev_id = []
+  end
+  
+  alias theo_comev_res_update update
+  def update
+    theo_comev_res_update
+    update_common_event
+  end
+  
+  def update_common_event
+    return if @comev_id.empty?
+    return if $game_temp.common_event_reserved?
+    $game_temp.reserve_common_event(@comev_id.shift)
+  end
+  
+  alias theo_timecv_minute on_minute_change
+  def on_minute_change
+    if ComEv::Minute > 0 && Minute_ID > 0
+      comev = [ComEv::Minute] * ([minute - var[Minute_ID],0].max)
+      @comev_id += comev
+    end
+    theo_timecv_minute
+  end
+  
+  alias theo_timecv_hour on_hour_change
+  def on_hour_change
+    if ComEv::Hour > 0 && Hour_ID > 0
+      comev = [ComEv::Hour] * ([hour - var[Hour_ID],0].max)
+      @comev_id += comev
+    end
+    theo_timecv_hour
+  end
+  
+  alias theo_timecv_day on_day_change
+  def on_day_change
+    if ComEv::Day > 0 && Day_ID > 0
+      comev = [ComEv::Day] * ([day - var[Day_ID],0].max)
+      @comev_id += comev
+    end
+    theo_timecv_day
+  end
+  
+  alias theo_timecv_week on_week_change
+  def on_week_change
+    if ComEv::Week > 0 && Week_ID > 0
+      comev = [ComEv::Week] * ([week - var[Week_ID],0].max)
+      @comev_id += comev
+    end
+    theo_timecv_week
+  end
+  
+end

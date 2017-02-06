@@ -1,0 +1,306 @@
+# =============================================================================
+# TheoAllen - Event Notification
+# Version : 1.0
+# Contact : www.rpgmakerid.com (or) http://theolized.blogspot.com
+# (This script documentation is written in informal indonesian language)
+# -----------------------------------------------------------------------------
+# Requires :
+# >> Theo - Basic Modules
+# =============================================================================
+($imported ||= {})[:Theo_EventNotif] = true
+# =============================================================================
+# CHANGE LOGS:
+# -----------------------------------------------------------------------------
+# 2013.06.11 - Finished script
+# 2013.06.10 - Started script
+# =============================================================================
+=begin
+
+  Perkenalan :
+  Script ini berfungsi untuk menampilkan event popup diatas player saat player
+  mendapat item atau mendapat gold. kamu juga bisa menyeting popupmu sendiri
+  dengan menggunakan teks.
+  
+  ----------------------------------------------------------------------------
+  Cara penggunaan :
+  Pasang dibawah material namun diatas main.
+  
+  untuk script call notifikasi, kamu bisa menuliskan
+  - evnotif_add("text")
+  - evnotif_add("text",color_id)
+  color_id adalah warna dari text color. Inputan adalah berupa angka dari
+  0 - 31
+  
+  untuk mendisable/enable change item / change gold, kamu bisa gunain
+  - evnotif_change_item(true/false)
+  - evnotif_change_gold(true/false)
+  pilih salah satu dari true atau false
+  
+  Edit konfigurasi kalo dirasa perlu
+  
+  ----------------------------------------------------------------------------
+  TERMS OF USE :
+  Credit gw, TheoAllen. Kalo semisal u bisa ngedit2 script gw trus jadi lebih
+  keren, terserah. Ane bebasin. Asal ngga ngeklaim aja. Kalo semisal mau
+  dipake buat komersil, jangan lupa, gw dibagi gratisannya.
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module EVTNOTIF
+    
+    # ========================================================================
+      CHANGE_ITEM_NOTIF = true  # Jika kamu pengen nampilin change item
+      GAIN_ITEM_COLOR   = 24    # Default : 24
+      LOSE_ITEM_COLOR   = 25    # Default : 25
+    # ------------------------------------------------------------------------
+    # Konfigurasi untuk notifikasi change item. Color disana adalah text color
+    # yang bisa kamu pilih antara 0 - 31
+    # ========================================================================
+    
+    # ========================================================================
+      CHANGE_GOLD_NOTIF = true    # Jika kamu pengen nampilin change gold
+      GAIN_GOLD_COLOR   = 6       # Default : 6
+      LOSE_GOLD_COLOR   = 25      # Default : 25
+      GOLD_VOCAB        = "Gold"  # Vocab / currency untuk gold
+    # ------------------------------------------------------------------------
+    # Konfigurasi untuk notifikasi change gold. Color disana adalah text color
+    # yang bisa kamu pilih antara 0 - 31
+    # ========================================================================
+    
+    # ========================================================================
+      NOTIF_WIDTH   = 200  # Lebar maksimal notifikasi
+      DEFAULT_COLOR = 0    # Default : 0
+    # ------------------------------------------------------------------------
+    # Konfigurasi untuk notifikasinya
+    # ========================================================================
+    
+    # ========================================================================
+      FONT_DEFAULT  = ["Calibri"]   # Font untuk notifikasinya
+      FONT_SIZE     = 17            # Size huruf (default : 17)
+      FONT_BOLD     = true          # tulis true jika pengen bold
+    # ------------------------------------------------------------------------
+    # Konfigurasi untuk font dalam notifikasinya ~
+    # ========================================================================
+    
+    # ========================================================================
+      SHOW_TIME     = 60  # Total waktu notifikasi ditampilkan (default : 60)
+      FADEIN_TIME   = 10  # Total waktu notifikasi dimunculkan (default : 10)
+      FADEOUT_TIME  = 20  # Total waktu notifikasi dihilangkan (default : 20)
+    # ------------------------------------------------------------------------
+    # Konfiguasi untuk waktu menampilkannya. Angka tersebut adalah dalam
+    # satuan frame. Dimana 60 frame sama dengan 1 detik
+    # ========================================================================
+    
+  end
+end
+# =============================================================================
+# Akhir dari konfigurasi 
+# =============================================================================
+class Game_System
+  attr_accessor :show_evnotif
+  attr_accessor :evnotif_gold
+  attr_accessor :notif_color
+  
+  alias pre_evnotif_init initialize
+  def initialize
+    pre_evnotif_init
+    init_evnotif_members
+  end
+  
+  def init_evnotif_members
+    @show_evnotif = THEO::EVTNOTIF::CHANGE_ITEM_NOTIF
+    @notif_color = THEO::EVTNOTIF::DEFAULT_COLOR
+    @evnotif_gold = THEO::EVTNOTIF::CHANGE_GOLD_NOTIF
+  end
+  
+end
+
+class Game_Party < Game_Unit
+  
+  alias pre_evnotif_gain_item gain_item
+  def gain_item(item,amount,include_equip = false)
+    if item_container(item.class) && amount != 0 && $game_system.show_evnotif
+      last_number = item_number(item)
+      if amount > 0
+        new_number = last_number+amount
+        gained = [[new_number,0].max,max_item_number(item)].min
+        $game_temp.item_queue.push(Game_EventStruct.new(item,gained))
+      elsif amount < 0 && last_number > 0
+        loss = [amount,last_number*-1].max
+        $game_temp.item_queue.push(Game_EventStruct.new(item,loss))
+      end
+    end
+    pre_evnotif_gain_item(item,amount,include_equip)
+  end
+  
+  alias pre_evnotif_gain_gold gain_gold
+  def gain_gold(amount)
+    color = amount > 0 ? THEO::EVTNOTIF::GAIN_GOLD_COLOR : 
+      THEO::EVTNOTIF::LOSE_GOLD_COLOR
+    text = THEO::EVTNOTIF::GOLD_VOCAB + (amount > 0 ? " +" : " ") + amount.to_s
+    $game_system.notif_color = color
+    $game_temp.item_queue.push(text) if $game_system.evnotif_gold
+    pre_evnotif_gain_gold(amount)
+  end
+  
+end
+
+class Game_Interpreter
+  
+  def evnotif_add(text,color=THEO::EVTNOTIF::DEFAULT_COLOR)
+    unless $game_temp.item_queue.any? do |list|
+      if list.is_a?(String)
+        list == text
+      else
+        false
+      end
+    end
+    $game_system.notif_color = color
+    $game_temp.item_queue.push(text) 
+    end
+  end
+  
+  def evnotif_change_item(bool)
+    $game_system.show_evnotif = bool
+  end
+  
+  def evnotif_change_gold(bool)
+    $game_system.evnotif_gold = bool
+  end
+  
+end
+
+class Game_EventStruct
+  attr_accessor :item, :amount
+  
+  def initialize(item,amount)
+    @item = item
+    @amount = amount
+  end
+  
+end
+
+class Game_Temp
+  attr_accessor :item_queue
+  
+  alias pre_evnotif_init initialize
+  def initialize
+    pre_evnotif_init
+    clear_item_queue
+  end
+  
+  def clear_item_queue
+    @item_queue = []
+  end
+  
+  def showing_notif?
+    !@item_queue.empty?
+  end
+  
+end
+
+class Window_EventNotif < Window_Base
+  
+  include THEO::EVTNOTIF
+  
+  def initialize(width)
+    super(0,0,width,window_height)
+    self.opacity = 0
+    self.contents_opacity = 0
+    contents.font.name = FONT_DEFAULT
+    contents.font.size = FONT_SIZE
+    contents.font.bold = FONT_BOLD
+    @item = nil
+    @notif_flag = false
+    @count = 0
+  end
+  
+  def window_height
+    24 + standard_padding*2
+  end
+  
+  def item=(item)
+    @item = item
+    refresh
+    update_placement
+    self.contents_fade(255,FADEIN_TIME)
+    @notif_flag = true
+    @count = 0
+  end
+  
+  def refresh
+    contents.clear
+    if @item.is_a?(Game_EventStruct)
+      icon = @item.item.icon_index
+      amount = @item.amount
+      if amount > 0
+        change_color(text_color(GAIN_ITEM_COLOR))
+      else
+        change_color(text_color(LOSE_ITEM_COLOR))
+      end
+      text = @item.item.name + (amount > 0 ? " +" : " ") + amount.to_s
+      rect = text_size(text)
+      draw_icon(icon,[contents.width/2 - rect.width/2 - 24,0].max,0)
+      draw_text(15,0,contents.width-24,contents.height,text,1)
+    else
+      change_color(text_color($game_system.notif_color))
+      draw_text(0,0,contents.width,contents.height,@item,1)
+    end
+  end
+  
+  def update_placement
+    self.x = $game_player.screen_x - self.width/2
+    self.y = $game_player.screen_y - self.height - 24
+  end
+  
+  def update
+    super
+    update_placement
+    if @notif_flag
+      if @count > SHOW_TIME
+        @notif_flag = false
+        @count = 0
+        contents.clear
+        self.contents_opacity = 0
+        self.opacity = 0
+      end
+      self.contents_fade(0,FADEOUT_TIME) if @count == SHOW_TIME - FADEOUT_TIME
+      @count += 1
+    end
+  end
+  
+  def showing_notif?
+    @notif_flag
+  end
+  
+end
+
+class Scene_Map < Scene_Base
+  
+  alias pre_evnotif_start start
+  def start
+    pre_evnotif_start
+    create_evnotif_window
+  end
+  
+  def create_evnotif_window
+    @evnotif_window = Window_EventNotif.new(THEO::EVTNOTIF::NOTIF_WIDTH)
+    @evnotif_window.viewport = @viewport
+  end
+  
+  alias pre_evnotif_update update
+  def update
+    pre_evnotif_update
+    update_evnotif_window
+  end
+  
+  def update_evnotif_window
+    if $game_temp.showing_notif? && !@evnotif_window.showing_notif?
+      @evnotif_window.item = $game_temp.item_queue.shift 
+    end
+  end
+  
+end

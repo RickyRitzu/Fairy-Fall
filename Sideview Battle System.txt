@@ -1,0 +1,125 @@
+# =============================================================================
+# Theolized Sideview Battle System
+# Version : 0.2
+# Contact : www.rpgmakerid.com
+# =============================================================================
+$imported = {} if $imported.nil?
+$imported[:Theo_Sideview] = true
+# =============================================================================
+# CHANGE LOGS
+# -----------------------------------------------------------------------------
+# 2013.05.07 - script ditulis (version 0.2)
+# =============================================================================
+=begin
+
+  Script ini masi dalam tahap pengembangan. Jadi jangan diedit-edit selain yg
+  ada di konfigurasi :v
+
+=end
+# =============================================================================
+# Konfigurasi :
+# =============================================================================
+module THEO
+  module SBS
+    
+    # nama battler harus ada di folder Graphics/battler
+    ACTOR_SETTINGS ={
+    # id => ["battler",screen_x, screen_y]
+       1 => ["actor4",  420,200],
+       2 => ["actor2_battler", 300,300],
+       3 => ["actor3_battler", 300,300],
+       4 => ["actor4_battler", 300,300],
+    
+    }
+    
+  end
+end
+# =============================================================================
+# Batas akhir konfig :
+# =============================================================================
+class Game_Actor < Game_Battler
+  attr_reader :screen_x
+  attr_reader :screen_y
+  attr_reader :ori_pos_x
+  attr_reader :ori_pos_y
+  
+  include THEO::Movement if $imported[:Theo_Movement]
+  
+  alias pre_battle_sprite_init initialize
+  def initialize(actor_id)
+    pre_battle_sprite_init(actor_id)
+    set_obj(self) if $imported[:Theo_Movement]
+    make_battler_name
+    make_battler_hue
+    make_battler_positions
+  end
+  
+  def make_battler_name
+    @battler_name = THEO::SBS::ACTOR_SETTINGS[id][0]
+  end
+  
+  def make_battler_hue
+    @battler_hue = 0
+  end
+  
+  def make_battler_positions
+    @screen_x = @ori_pos_x = THEO::SBS::ACTOR_SETTINGS[id][1]
+    @screen_y = @ori_pos_y = THEO::SBS::ACTOR_SETTINGS[id][2]
+  end
+  
+  def use_sprite?
+    return true
+  end
+  
+  def screen_z
+    return 100
+  end
+  
+  def x
+    @screen_x
+  end
+  
+  def x=(x)
+    @screen_x = x
+  end
+  
+  def y
+    @screen_y
+  end
+  
+  def y=(y)
+    @screen_y = y
+  end
+  
+end
+
+class Spriteset_Battle
+  
+  def create_actors
+    @actor_sprites = $game_party.members.collect do |actor|
+      Sprite_Battler.new(@viewport1, actor)
+    end
+  end
+  
+end
+
+class Game_Party < Game_Unit
+  
+  def update
+    return unless $imported[:Theo_Movement]
+    members.each do |actor|
+      actor.update_move
+    end
+  end
+  
+end
+
+class Scene_Battle < Scene_Base
+  
+  alias pre_sbs_update_basic update_basic
+  def update_basic
+    pre_sbs_update_basic
+    $game_party.update
+  end
+  
+end
